@@ -16,6 +16,7 @@ chunks -> chunk chunks : ['$1' | '$2'].
 chunk -> head_line head_options head_line code_lines : save_chunk(head, "HEAD", '$2', '$4').
 chunk -> section_line name section_options section_line code_lines : save_chunk(section, '$2', '$3', '$5').
 chunk -> section_line name section_line code_lines : save_chunk(section, '$2', [], '$4').
+chunk -> section_line name section_line : save_chunk(section, '$2', [], []).
 
 head_options -> head_option : ['$1'].
 head_options -> head_option head_options : ['$1'| '$2'].

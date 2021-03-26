@@ -22,7 +22,7 @@ compile(DefFile, Options) ->
   Sheets = prepare_lex_yacc(DefFile, Options),
   DefInc = filename:basename(DefFile),
   Options2 = merge_option_values(Options, {include, ["sheets_common.hrl", DefInc]}),
-  % io:format("~s:~w generate ~p options ~p~n", [?MODULE, ?LINE, Sheets, Options2]),
+  %io:format("~s:~w generate ~p options ~p~n", [?MODULE, ?LINE, Sheets, Options2]),
   sheets_generate:generate(Sheets, Options2).
 
 merge_option_values(Options, {Key, Values}) ->
@@ -42,6 +42,7 @@ generate() ->
 
 prepare_lex_yacc(DefFile, _GenOptions) ->
   {ok, Tokens, _} = lex_parse(DefFile, sheets_record_lex),
+  %io:format("~s:~w lex_parse ~p tokens ~p~n", [?MODULE, ?LINE, DefFile, Tokens]),
   {ok, Sheets} = yacc_parse(Tokens, sheets_record_yacc),
   Sheets.
 

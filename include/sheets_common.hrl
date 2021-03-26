@@ -52,14 +52,13 @@
   )
 ).
 
-%% 默认值
--define(default(Value, Default), ?VAL_IF(Value =:= ?UNDEF, Default, Value)).
 
 %% 表头处理函数
 -define(h_auto_ref(Name), {fun sheets_func:auto_ref/3, Name}).
 -define(h_map(Name, ReStr, Cols, Values), sheets_func:map(Name, ReStr, Cols, Values)).
 -define(h_prop(Name, ReStrList, Cols, Values), sheets_func:prop(Name, ReStrList, Cols, Values)).
 -define(h_list(Name, ReStr, Cols, Values), sheets_func:list(Name, ReStr, Cols, Values)).
+-define(h_group(Name, ReStr, Cols, Values), sheets_func:group(Name, ReStr, Cols, Values)).
 -define(f_check(Name, Fun, Value), sheets_func:check(Name, Fun, Value)).
 -define(f_filter(Name, Fun, Value), sheets_func:filter(Name, Fun, Value)).
 -define(f_cast(Name, Fun, Value), sheets_func:cast(Name, Fun, Value)).
@@ -67,5 +66,17 @@
 
 %% 转换定义
 -define(to_atom, fun(Key) -> list_to_atom(string:lowercase(Key)) end).
+-define(to_integer, fun(Key) -> list_to_integer(Key) end).
+
+%% 默认值
+-define(default(Value, Default), ?VAL_IF(Value =:= ?UNDEF, Default, Value)).
+
+%% 是正数
+-define(is_positive(A), A > 0).
+-define(is_positive(A, B), A > 0 andalso B > 0).
+-define(is_positive(A, B, C), A > 0 andalso B > 0 andalso C > 0).
+
+%% 过滤空值
+-define(filter_empty(List), sheets_func:filter_empty(List)).
 
 -endif.

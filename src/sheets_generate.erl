@@ -115,6 +115,7 @@ generate_one2(#sheet{metas = Metas, record = Record} = Sheet, Options0) ->
   SheetMd5 = md5str(term_to_binary({Generator, Version, Options0, Sheet})),
   #record{name = Name} = Record,
   NameStr = atom_to_list(Name),
+%%  io:format("generate_one2 ~p~n", [NameStr]),
   OutputFileName = get_out_filename(Sheet, Options0),
   filelib:ensure_dir(OutputFileName),
   IsClean = option(Options0, clean, false),
@@ -165,7 +166,7 @@ generate_one2(#sheet{metas = Metas, record = Record} = Sheet, Options0) ->
   write_code(Fd, "-define(SHEET_FILE, \"~s\").", [get_meta_method_param(file, Metas)]),
   write_code(Fd, "-define(SHEET_HEADERS, [~s]).", [get_field_headers(Sheet)]),
   write_code(Fd, "-define(SHEET_RECORD, #~s{}).", [Name]),
-  write_code(Fd, "-define(SHEET_RECORD_KEY, #~s.~s).", [Name, get_sheet_key_field(Sheet)]),
+  write_code(Fd, "-define(SHEET_RECORD_KEY, #~s.~s).", [Name, get_sheet_key_name(Sheet)]),
   write_section_end(Fd),
 
 
@@ -260,30 +261,43 @@ generate_one2(#sheet{metas = Metas, record = Record} = Sheet, Options0) ->
   % Field implements
   write_section_start(Fd, "Field"),
   % fill_record(Record, Columns)
-
   FieldCodes = get_field_codes(Sheet),
-  write_code_api_start(Fd, "setup fields of record", ["fill_record(Record, Columns) -> NewRecord", "Record = NewRecord = #"++NameStr++"{}", "Columns = [term()]"]),
-  write_code(Fd, "fill_record(Record, [~s]) ->", [string:join(get_field_columns(FieldCodes), ", ")]),
-  write_code(Fd, "  Record#~s{", [NameStr]),
-  FieldCodes2 = [_FieldCode || {_, _Code} = _FieldCode <- FieldCodes, _Code =/= ignore],
-  write_fill_record_fields(Fd, FieldCodes2, Sheet),
-  write_code(Fd, "  }."),
+  case has_override_api("fill_record/2", Options) of
+    true -> pass;
+    false ->
+      write_code_api_start(Fd, "setup fields of record", ["fill_record(Record, Columns) -> NewRecord", "Record = NewRecord = #"++NameStr++"{}", "Columns = [term()]"]),
+      write_code(Fd, "fill_record(Record, [~s]) ->", [string:join(get_field_columns(FieldCodes), ", ")]),
+      KeyField = get_key_field(Sheet),
+      case KeyField of
+        ?UNDEF -> write_code(Fd, "  Record#~s{", [NameStr]);
+        _ -> write_code(Fd, "  Record1 = Record#~s{", [NameStr])
+      end,
+      write_fill_record_fields(Fd, FieldCodes, Sheet),
+      case KeyField of
+        ?UNDEF -> write_code(Fd, "  }.");
+        _ ->
+          write_code(Fd, "  },"),
+          write_code(Fd, "  Record2 = Record1#~s{", [NameStr]),
+          write_fill_record_key_field(Fd, KeyField, format("Record1#~s", [NameStr])),
+          write_code(Fd, "  },"),
+          write_code(Fd, "  Record2.")
+      end
+  end,
   write_code_api_end(Fd),
-  FieldCodes3 = [_FieldCode || {_Name, _Code} = _FieldCode <- FieldCodes2, format("F_~w", [_Name]) =/= _Code],
+  FieldCodes2 = [_FieldCode || {_Name, _Code} = _FieldCode <- FieldCodes, format("F_~w", [_Name]) =/= _Code],
   % f(Name, ParsedValue)
-  case FieldCodes3 of
+  case FieldCodes2 of
     [] -> pass;
     _ ->
       write_code_api_start(Fd, "get field value", ["f(Name, ParsedValue) -> Value", "Name = atom()", "ParsedValue = Value = term()"]),
-      write_field_codes(Fd, FieldCodes3),
+      write_field_codes(Fd, FieldCodes2),
       write_code_api_end(Fd)
   end,
   write_section_end(Fd),
 
-  {CustomOptions, CustomCodes} = option(Options, custom, {[], []}),
+  {CustomOptions, CustomCodes} = option(Options, "Custom", {[], []}),
   write_section_start(Fd, "Custom", CustomOptions),
   write_section_end(Fd, CustomCodes),
-
 
   file:close(Fd),
 
@@ -300,6 +314,9 @@ update_options_from_file(Options, FileName) ->
 %option(Options, Name) -> option(Options, Name, ?UNDEF).
 option(Options, Name, Default) ->
   proplists:get_value(Name, Options, Default).
+
+has_override_api(ApiName, Options) ->
+  lists:member(ApiName, option(Options, override, [])).
 
 timenow() ->
   {A, B, _} = os:timestamp(),
@@ -363,9 +380,8 @@ write_section_start(Fd, TagName) ->
 
 write_section_start(Fd, TagName, SectionOptions) ->
   write_line(Fd, ?STR_SECTION_LINE),
-  io:format(Fd, "%%% ~s", [TagName]),
-  lists:foreach(fun(Line) -> io:format(Fd, Line) end, SectionOptions),
-  write_line(Fd),
+  write_code(Fd, "%%% ~s", [TagName]),
+  lists:foreach(fun(Line) -> write_code(Fd, "~s", [Line], 0) end, SectionOptions),
   write_line(Fd, ?STR_SECTION_LINE).
 
 
@@ -373,7 +389,7 @@ write_section_end(Fd) ->
   write_section_end(Fd, []).
 
 write_section_end(Fd, Codes) ->
-  lists:foreach(fun(Line) -> io:format(Fd, Line) end, Codes),
+  lists:foreach(fun(Line) -> write_code(Fd, "~s", [Line], 0) end, Codes),
   write_line(Fd).
 
 
@@ -427,7 +443,7 @@ write_header_codes(Fd, [{Name, Code}|Rest]) ->
 
 
 %% 属性
--define(HEADER_FUNC_NAMES, [map, list, prop]).
+-define(HEADER_FUNC_NAMES, [map, list, prop, group]).
 
 write_header_implements(Fd, HeaderCodes, Sheet) ->
   write_header_implements2(Fd, ?HEADER_FUNC_NAMES, HeaderCodes, Sheet),
@@ -480,6 +496,17 @@ write_header_impl_func(Fd, FuncName, Sheet) when FuncName =:= list  ->
   write_header_impl_func_fields(Fd, FuncName, Fields, Sheet),
   write_code_api_end(Fd);
 
+write_header_impl_func(Fd, FuncName, Sheet) when FuncName =:= group  ->
+  write_code_api_start(Fd, format("h_~s field", [FuncName]),
+    [
+      format("h_~s(Name, Cols, Values) -> Value", [FuncName]),
+      "Name = atom(), Cols = [string()]",
+      "Value = tuple()"
+    ]),
+  Fields = get_fields_by_func(FuncName, Sheet),
+  write_header_impl_func_fields(Fd, FuncName, Fields, Sheet),
+  write_code_api_end(Fd);
+
 write_header_impl_func(Fd, FuncName, Sheet) when FuncName =:= check; FuncName =:= enum ->
   write_code_api_start(Fd, format("h_~s field", [FuncName]),
     [
@@ -503,7 +530,7 @@ write_header_impl_func_fields(Fd, FuncName, [Field | Rest], Sheet) ->
   write_header_impl_func_fields(Fd, FuncName, Rest, Sheet).
 
 
-write_header_impl_func_field(Fd, FuncName, #field{name = Name, metas = Mates}, _Sheet, End) when FuncName =:= prop ->
+write_header_impl_func_field(Fd, FuncName, #field{name = Name, metas = Mates}, _Sheet, End) when FuncName =:= prop; FuncName =:= group ->
   #meta_method{main = #method_main{params = Params}} = get_meta_method(FuncName, Mates),
   ListStr = format("[~s]", [string:join(Params, ", ")]),
   write_code(Fd, "h_~s(~w, Cols, Values) -> ?h_~s(~w, ~s, Cols, Values)~s", [FuncName, Name, FuncName, Name, ListStr, End]);
@@ -543,9 +570,9 @@ get_define_value(DefKey, #sheet{metas = Mates}, Name) ->
 
 
 get_field_columns(FieldCodes) ->
-  [get_field_column(FieldCode) || FieldCode <- FieldCodes].
+  Columns = [get_field_column(FieldCode) || FieldCode <- FieldCodes],
+  [Column || Column <- Columns, Column =/= ?UNDEF].
 
-get_field_column({Name, ignore}) -> format("_F_~w", [Name]);
 get_field_column({Name, _}) -> format("F_~w", [Name]).
 
 
@@ -573,13 +600,29 @@ write_field_codes(Fd, [{Name, Code}|Rest]) ->
   write_field_codes(Fd, Rest).
 
 
+write_fill_record_key_field(Fd, #field{name = Name} = Field, RecordPre) ->
+  ValueStr = get_key_field_value_str(Field, RecordPre),
+  write_code(Fd, "    ~s = ~s", [Name, ValueStr]).
+
+get_key_field_value_str(#field{default = Default}, RecordPre) when is_tuple(Default) ->
+  get_key_field_value_str2(tuple_to_list(Default), "{~s}", RecordPre);
+
+get_key_field_value_str(#field{default = Default}, RecordPre) when is_list(Default) ->
+  get_key_field_value_str2(Default, "[~s]", RecordPre).
+
+get_key_field_value_str2(List, RetFormat, RecordPre) ->
+  List2 = [format("~s.~w", [RecordPre, Name]) || Name <- List],
+  format(RetFormat, [string:join(List2, ", ")]).
+
 get_field_codes(#sheet{record = #record{fields = Fields}} = Sheet) ->
-  [{Name, get_field_code(Field, Sheet)} || #field{name = Name} = Field <- Fields].
+  Codes = [{Name, get_field_code(Field, Sheet)} || #field{name = Name} = Field <- Fields],
+  [{Name, Code} || {Name, Code} <- Codes, Code =/= ?UNDEF].
 
 
 get_field_code(#field{metas = Mates} = Field, Sheet) ->
   try
-    ?RETURN_IF(has_meta_method(ignore, Mates), ignore),
+    ?RETURN_IF(has_meta_method(key, Mates), ?UNDEF),
+    ?RETURN_IF(has_meta_method(ignore, Mates), ?UNDEF),
     Code = get_field_impl_code(Field, Sheet),
     Code
   catch
@@ -686,6 +729,15 @@ update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= pr
         ])
   end;
 
+update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= group ->
+  #meta_method{modifiers = Modifiers} = Method,
+  case Modifiers of
+    [] -> Code;
+    [_|_] ->
+      CastStr = get_modifiers_code(Name, Sheet, Modifiers, [cast], Code, Code),
+      CastStr
+  end;
+
 update_field_impl_code(_Name, _FuncName, _Method, _Sheet, Code) -> Code.
 
 
@@ -757,12 +809,16 @@ get_meta_method_params(Name, [#meta{}|Rest]) ->
 
 get_field_headers(#sheet{record = #record{fields = Fields}, metas = Mates}) ->
   Headers = [get_field_header(Field, Mates) || Field <- Fields],
-  string:join(Headers, ", ").
+  Headers2 = [Header || Header <- Headers, Header =/= ?UNDEF],
+  string:join(Headers2, ", ").
 
 get_field_header(#field{name = Name, metas = Mates}, _HeadMates) ->
   try
+    ?RETURN_IF(has_meta_method(key, Mates), ?UNDEF),
+    ?RETURN_IF(has_meta_method(ignore, Mates), ?UNDEF),
     Params = get_meta_method_params(ref, Mates),
     case Params of
+      ["\"" ++ _ = RefName] -> ?RETURN(RefName);
       [RefName] -> ?RETURN(lists:concat(["\"", RefName, "\""]));
       _ -> pass
     end,
@@ -772,30 +828,45 @@ get_field_header(#field{name = Name, metas = Mates}, _HeadMates) ->
   end.
 
 
-get_sheet_key_field(#sheet{record = #record{fields = [#field{name = Name}|_] = Fields}}) ->
-  case get_sheet_key_field2(Fields) of
+get_sheet_key_name(#sheet{record = #record{fields = [#field{name = Name}|_] = Fields}}) ->
+  case get_sheet_key_name2(Fields) of
     ?UNDEF -> Name;
     Key -> Key
   end.
 
-get_sheet_key_field2([]) -> ?UNDEF;
-get_sheet_key_field2([#field{name = Name, metas = Metas}| Rest]) ->
-  case has_meta_method("key", Metas) of
+get_sheet_key_name2([]) -> ?UNDEF;
+get_sheet_key_name2([#field{name = Name, metas = Metas}| Rest]) ->
+  case has_meta_method(key, Metas) of
     true -> Name;
-    false -> get_sheet_key_field2(Rest)
+    false -> get_sheet_key_name2(Rest)
+  end.
+
+get_key_field(#sheet{record = #record{fields = Fields}}) ->
+  case get_key_field2(Fields) of
+    ?UNDEF -> ?UNDEF;
+    Field -> Field
+  end.
+
+get_key_field2([]) -> ?UNDEF;
+get_key_field2([#field{metas = Metas} = Field| Rest]) ->
+  case has_meta_method(key, Metas) of
+    true -> Field;
+    false -> get_key_field2(Rest)
   end.
 
 get_header_implements(#sheet{record = #record{fields = Fields}, metas = Mates}) ->
   Impls = [{Name, get_header_codes(Field, Mates)} || #field{name = Name} = Field <- Fields],
   lists:filter(fun({_, Code}) -> Code =/= ?UNDEF end, Impls).
 
-get_header_codes(#field{name = Name, default = Default, metas = Mates}, _HeadMates) ->
+get_header_codes(#field{name = Name, metas = Mates}, _HeadMates) ->
   try
-    ?RETURN_IF(has_meta_method(ignore, Mates), lists:concat(["{value, ", term_to_string(Default), "}"])),
+    ?RETURN_IF(has_meta_method(key, Mates), ?UNDEF),
+    ?RETURN_IF(has_meta_method(ignore, Mates), ?UNDEF),
     ?RETURN_IF(get_meta_method_params(ref, Mates) =/= [], ?UNDEF),
     ?RETURN_IF(has_meta_method(list, Mates), lists:concat(["{fun h_list/3, ", Name, "}"])),
     ?RETURN_IF(has_meta_method(map, Mates), lists:concat(["{fun h_map/3, ", Name, "}"])),
     ?RETURN_IF(has_meta_method(prop, Mates), lists:concat(["{fun h_prop/3, ", Name, "}"])),
+    ?RETURN_IF(has_meta_method(group, Mates), lists:concat(["{fun h_group/3, ", Name, "}"])),
     lists:concat(["?h_auto_ref(", Name, ")"])
   catch
     ?CATCH_RETURN(Ret) -> Ret

@@ -12,7 +12,8 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
--export([auto_ref/3, map/4, prop/4, list/4, check/3, filter/3, enum/3, cast/3]).
+-export([auto_ref/3, map/4, prop/4, list/4, group/4, check/3, filter/3, enum/3, cast/3]).
+-export([filter_empty/1]).
 -export([ets_take_l/2, ets_take_r/2, ets_keys/1, ets_foldtake_l/3, ets_foldtake_r/3]).
 -include("sheets_common_def.hrl").
 
@@ -28,12 +29,12 @@
 %%--------------------------------------------------------------------
 auto_ref(Name, Cols, Values) when is_atom(Name) ->
   Name1 = atom_to_list(Name),
-  Name2 = string:replace(Name1, "_", ""),
+  Name2 = string:replace(Name1, "_", "", all),
   Name3 = string:lowercase(Name2),
   auto_ref(Name3, Cols, Values);
 
 auto_ref(Name, [ColName|ColRest], [Value|ValRest]) when is_list(Name) ->
-  case string:lowercase(string:replace(ColName, " ", "")) of
+  case string:lowercase(string:replace(ColName, " ", "", all)) of
     Name -> Value;
     _Other -> auto_ref(Name, ColRest, ValRest)
   end;
@@ -104,6 +105,20 @@ list(Name, ReStr, Cols, Values) ->
 
 
 %%--------------------------------------------------------------------
+%% @doc group field
+%% @spec group(Name, ReStrList, Cols, Values) -> tuple()
+%%   Name = atom(), ReStrList = [string()], Cols = [string()]
+%%--------------------------------------------------------------------
+group(Name, ReStrList, Cols, Values) ->
+  list_to_tuple([
+    case list(Name, ReStr, Cols, Values) of
+      [] -> ?RETURN({group_not_matched, Name, ReStr});
+      [Value] -> Value;
+      List -> List
+    end || ReStr <- ReStrList]).
+
+
+%%--------------------------------------------------------------------
 %% @doc check field
 %% @spec check(Name, Func, Value) -> Value
 %%   Name = atom(), Func = function(), Value = term()
@@ -149,6 +164,24 @@ filter(Name, Func, Value) ->
     false -> false;
     Other -> ?RETURN({field_filter_error, Name, Value, Other})
   end.
+
+%%--------------------------------------------------------------------
+%% @doc filter empty value
+%% @spec filter_empty(List) -> List2
+%%--------------------------------------------------------------------
+filter_empty(List) ->
+  lists:filtermap(
+    fun({Key, Value}) when is_atom(Key), is_integer(Value) -> Value > 0;
+      ({Key, ID, Value}) when is_atom(Key), is_integer(ID), is_integer(Value) -> ID > 0 andalso Value > 0;
+      ({ID, Value}) when is_integer(ID), is_integer(Value) -> ID > 0 andalso Value > 0;
+      (L) when is_list(L) ->
+        case filter_empty(L) of
+          [] -> false;
+          L2 -> {true, L2}
+        end
+    end,
+    List
+  ).
 
 
 %%%===================================================================

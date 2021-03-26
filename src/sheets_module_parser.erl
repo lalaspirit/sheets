@@ -44,6 +44,7 @@ parse(FileName) ->
   {ok, Binary} = file:read_file(FileName),
   List = unicode:characters_to_list(Binary),
   {ok, Tokens, _} = sheets_module_lex:string(List),
+  % io:format("parse ~p, tokens: ~p~n", [FileName, Tokens]),
   sheets_module_yacc:parse(Tokens).
 
 
@@ -85,7 +86,8 @@ parse_chunk_section_option(Options, {"include", List, _}) ->
 
 parse_section(Options, #chunk{name = Name, options = SectionOptions, codes = Codes}) ->
   SOptionList = [S || {_, _, S} <- SectionOptions],
-  lists:keystore(Name, 1, Options, {Name, {SOptionList, Codes}}).
+  SCodeList = [Code || {code_line, _N, Code} <- Codes],
+  lists:keystore(Name, 1, Options, {Name, {SOptionList, SCodeList}}).
 
 
 

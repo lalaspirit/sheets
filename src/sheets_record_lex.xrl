@@ -6,8 +6,8 @@ Atoms = [a-z][0-9a-zA-Z_]*
 Variables = [A-Z_][0-9a-zA-Z_]*
 Floats = (\+|-)?[0-9]+\.[0-9]+((E|e)(\+|-)?[0-9]+)?
 String = "((\\")|.)+"
-Tuple = {.*}
-List = \[.*\]
+Tuple = {[^\r\n\{\}]*}
+List = \[[^\r\n\[\]]*\]
 NotS = [^\s\r\n]+
 Words = [\x{4e00}-\x{9fa5}]+
 Fun = \s*(fun)\s*[(].+(end)
@@ -32,7 +32,7 @@ Rules.
 
 {Comment}.* : {token, {sheet_def_comment, TokenLine, parse_comment(TokenChars)}}.
 
-[-]record[(]{Spaces}{Atoms}[,]{Spaces}[{] : {token, {sheet_def_record, TokenLine, parse_sheet(TokenChars)}}.
+[-]record[(]{Spaces}{Atoms}[,]{Spaces}[{]{EndLine} : {token, {sheet_def_record, TokenLine, parse_sheet(TokenChars)}}.
 
 [-]{Atoms}.+ : skip_token.
 
