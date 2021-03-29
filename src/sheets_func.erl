@@ -199,11 +199,11 @@ ets_take_l(Ets, Fun) ->
   ets:safe_fixtable(Ets, false),
   Ret.
 
-ets_take_l(_Ets, ?EOT, _Fun) -> ?UNDEF;
+ets_take_l(_Ets, ?EOT, _Fun) -> false;
 ets_take_l(Ets, Key, Fun) ->
   [Value] = ets:lookup(Ets, Key),
   case Fun(Value) of
-    {true, Ret} -> Ret;
+    {true, Ret} -> {true, Ret};
     false -> ets_take_l(Ets, ets:next(Ets, Key), Fun)
   end.
 
@@ -218,11 +218,11 @@ ets_take_r(Ets, Fun) ->
   ets:safe_fixtable(Ets, false),
   Ret.
 
-ets_take_r(_Ets, ?EOT, _Fun) -> ?UNDEF;
+ets_take_r(_Ets, ?EOT, _Fun) -> false;
 ets_take_r(Ets, Key, Fun) ->
   [Value] = ets:lookup(Ets, Key),
   case Fun(Value) of
-    {true, Ret} -> Ret;
+    {true, Ret} -> {true, Ret};
     false -> ets_take_r(Ets, ets:prev(Ets, Key), Fun)
   end.
 
