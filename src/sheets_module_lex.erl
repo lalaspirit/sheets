@@ -1,4 +1,4 @@
--file("c:/Program Files/erl8.3/lib/parsetools-2.1.4/include/leexinc.hrl", 0).
+-file("/usr/local/lib/erlang/lib/parsetools-2.2/include/leexinc.hrl", 0).
 %% The source of this file is part of leex distribution, as such it
 %% has the same Copyright as the other files in the leex
 %% distribution. The Copyright is defined in the accompanying file
@@ -12,10 +12,16 @@
 -export([format_error/1]).
 
 %% User code. This is placed here to allow extra attributes.
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 21).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 21).
 
 parse_head_option(TokenChars) ->
-    {match, [Key, Value]} = re:run(get_uf8_binary(TokenChars), "@([a-zA-Z][0-9a-zA-Z_]+)\s+(.+)", [{capture,[1,2],binary}]),
+    S = get_uf8_binary(TokenChars),
+    {Key, Value} = case re:run(S, "@([a-zA-Z][0-9a-zA-Z_]+)\s+(.+)", [{capture,[1,2],binary}]) of
+        {match, [_Key, _Value]} -> {_Key, _Value};
+        _ ->
+            {match, [_Key]} = re:run(S, "@([a-zA-Z][0-9a-zA-Z_]+).+", [{capture,[1],binary}]),
+            {_Key, ""}
+    end,
     {get_unicode(Key), get_unicode(Value)}.
 
 parse_section_option(TokenChars) ->
@@ -78,7 +84,7 @@ my_trim(S, leading, List) ->
         _ -> S
     end.
 
--file("c:/Program Files/erl8.3/lib/parsetools-2.1.4/include/leexinc.hrl", 14).
+-file("/usr/local/lib/erlang/lib/parsetools-2.2/include/leexinc.hrl", 14).
 
 format_error({illegal,S}) -> ["illegal characters ",io_lib:write_string(S)];
 format_error({user,S}) -> S.
@@ -339,6 +345,8 @@ skip_cont(Rest, Line, {skip_token,Push}, Error) ->
 skip_cont(Rest, Line, {error,_S}, Error) ->
     skip_tokens(yystate(), Rest, Line, Rest, 0, Line, Error, reject, 0).
 
+-compile({nowarn_unused_function, [yyrev/1, yyrev/2, yypre/2, yysuf/2]}).
+
 yyrev(List) -> lists:reverse(List).
 yyrev(List, Tail) -> lists:reverse(List, Tail).
 yypre(List, N) -> lists:sublist(List, N).
@@ -348,6 +356,8 @@ yysuf(List, N) -> lists:nthtail(N, List).
 %% Make sure that newlines in Chars are not counted twice.
 %% Line has been updated with respect to newlines in the prefix of
 %% Chars consisting of (TokenLength - AcceptLength) characters.
+
+-compile({nowarn_unused_function, adjust_line/4}).
 
 adjust_line(N, N, _Cs, L) -> L;
 adjust_line(T, A, [$\n|Cs], L) ->
@@ -365,7 +375,7 @@ adjust_line(T, A, [_|Cs], L) ->
 %% return signal either an unrecognised character or end of current
 %% input.
 
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.erl", 367).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.erl", 377).
 yystate() -> 21.
 
 yystate(24, Ics, Line, Tlen, _, _) ->
@@ -742,33 +752,33 @@ yyaction(5, TokenLen, YYtcs, TokenLine) ->
 yyaction(_, _, _, _) -> error.
 
 -compile({inline,yyaction_0/1}).
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 6).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 6).
 yyaction_0(TokenLine) ->
      { token, { head_line, TokenLine } } .
 
 -compile({inline,yyaction_1/2}).
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 8).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 8).
 yyaction_1(TokenChars, TokenLine) ->
      { token, { head_option, TokenLine, parse_head_option (TokenChars) } } .
 
 -compile({inline,yyaction_2/1}).
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 10).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 10).
 yyaction_2(TokenLine) ->
      { token, { section_line, TokenLine } } .
 
 -compile({inline,yyaction_3/2}).
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 12).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 12).
 yyaction_3(TokenChars, TokenLine) ->
      { token, { section_option, TokenLine, parse_section_option (TokenChars) } } .
 
 -compile({inline,yyaction_4/2}).
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 14).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 14).
 yyaction_4(TokenChars, TokenLine) ->
      { token, { name, TokenLine, parse_name (TokenChars) } } .
 
 -compile({inline,yyaction_5/2}).
--file("d:/myproj/3rd/sheets/src/sheets_module_lex.xrl", 16).
+-file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_module_lex.xrl", 16).
 yyaction_5(TokenChars, TokenLine) ->
      { token, { code_line, TokenLine, TokenChars } } .
 
--file("c:/Program Files/erl8.3/lib/parsetools-2.1.4/include/leexinc.hrl", 309).
+-file("/usr/local/lib/erlang/lib/parsetools-2.2/include/leexinc.hrl", 313).

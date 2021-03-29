@@ -21,7 +21,13 @@ Rules.
 Erlang code.
 
 parse_head_option(TokenChars) ->
-    {match, [Key, Value]} = re:run(get_uf8_binary(TokenChars), "@([a-zA-Z][0-9a-zA-Z_]+)\s+(.+)", [{capture,[1,2],binary}]),
+    S = get_uf8_binary(TokenChars),
+    {Key, Value} = case re:run(S, "@([a-zA-Z][0-9a-zA-Z_]+)\s+(.+)", [{capture,[1,2],binary}]) of
+        {match, [_Key, _Value]} -> {_Key, _Value};
+        _ ->
+            {match, [_Key]} = re:run(S, "@([a-zA-Z][0-9a-zA-Z_]+).+", [{capture,[1],binary}]),
+            {_Key, ""}
+    end,
     {get_unicode(Key), get_unicode(Value)}.
 
 parse_section_option(TokenChars) ->
