@@ -23,12 +23,26 @@ compile(DefFile, Options) ->
   DefInc = filename:basename(DefFile),
   Options2 = merge_option_values(Options, {include, ["sheets_common.hrl", DefInc]}),
   %io:format("~s:~w generate ~p options ~p~n", [?MODULE, ?LINE, Sheets, Options2]),
-  sheets_generate:generate(Sheets, Options2).
+  Ret = sheets_generate:generate(Sheets, Options2),
+  case proplists:get_value(out_module_list, Options, "") of
+    "" -> pass;
+    ModuleFile ->
+      OutFiles = out_files(DefFile, Options),
+      write_module_list(ModuleFile, OutFiles)
+  end,
+  Ret.
+
+write_module_list(ModuleFile, OutFiles) ->
+  {ok, Fd} = file:open(ModuleFile, [write, binary]),
+  OutFiles2 = [filename:rootname(filename:basename(FileName)) || FileName <- OutFiles],
+  io:format(Fd, "[\n~s\n].", [string:join(OutFiles2, ",\n")]),
+  file:close(Fd).
 
 merge_option_values(Options, {Key, Values}) ->
-  Found = proplists:get_value(Key, Options, []),
-  NewValues = lists:umerge(Found, Values),
-  lists:keystore(Key, 1, Options, {Key, NewValues}).
+  case lists:keymember(Key, 1, Options) of
+    true -> Options;
+    false -> lists:keystore(Key, 1, Options, {Key, Values})
+  end.
 
 out_files(DefFile, Options) ->
   Sheets = prepare_lex_yacc(DefFile, Options),

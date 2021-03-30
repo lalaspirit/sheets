@@ -1,4 +1,4 @@
--file("/usr/local/lib/erlang/lib/parsetools-2.2/include/leexinc.hrl", 0).
+-file("/usr/local/lib/erlang/lib/parsetools-2.0.10/include/leexinc.hrl", 0).
 %% The source of this file is part of leex distribution, as such it
 %% has the same Copyright as the other files in the leex
 %% distribution. The Copyright is defined in the accompanying file
@@ -12,7 +12,7 @@
 -export([format_error/1]).
 
 %% User code. This is placed here to allow extra attributes.
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 69).
+-file("src/sheets_record_lex.xrl", 69).
 
 parse_sheet(TokenChars) ->
     {match, [Name]} = re:run(get_uf8_binary(TokenChars), "\\(\\s*([a-z][0-9a-zA-Z_]*)\\s*,", [{capture,[1],list}]),
@@ -122,7 +122,7 @@ my_trim(S, leading, List) ->
         _ -> S
     end.
 
--file("/usr/local/lib/erlang/lib/parsetools-2.2/include/leexinc.hrl", 14).
+-file("/usr/local/lib/erlang/lib/parsetools-2.0.10/include/leexinc.hrl", 14).
 
 format_error({illegal,S}) -> ["illegal characters ",io_lib:write_string(S)];
 format_error({user,S}) -> S.
@@ -147,17 +147,13 @@ string(Ics0, L0, Tcs, Ts) ->
             string_cont(Ics1, L1, yyaction(A, Alen, Tcs, L0), Ts);
         {reject,_Alen,Tlen,_Ics1,L1,_S1} ->  % After a non-accepting state
             {error,{L0,?MODULE,{illegal,yypre(Tcs, Tlen+1)}},L1};
-        {A,Alen,Tlen,_Ics1,L1,_S1} ->
-            Tcs1 = yysuf(Tcs, Alen),
-            L2 = adjust_line(Tlen, Alen, Tcs1, L1),
-            string_cont(Tcs1, L2, yyaction(A, Alen, Tcs, L0), Ts)
+        {A,Alen,_Tlen,_Ics1,L1,_S1} ->
+            string_cont(yysuf(Tcs, Alen), L1, yyaction(A, Alen, Tcs, L0), Ts)
     end.
 
 %% string_cont(RestChars, Line, Token, Tokens)
 %% Test for and remove the end token wrapper. Push back characters
 %% are prepended to RestChars.
-
--dialyzer({nowarn_function, string_cont/4}).
 
 string_cont(Rest, Line, {token,T}, Ts) ->
     string(Rest, Line, Rest, [T|Ts]);
@@ -220,17 +216,13 @@ token(S0, Ics0, L0, Tcs, Tlen0, Tline, A0, Alen0) ->
         {reject,_Alen1,Tlen1,Ics1,L1,_S1} ->    % No token match
             Error = {Tline,?MODULE,{illegal,yypre(Tcs, Tlen1+1)}},
             {done,{error,Error,L1},Ics1};
-        {A1,Alen1,Tlen1,_Ics1,L1,_S1} ->       % Use last accept match
-            Tcs1 = yysuf(Tcs, Alen1),
-            L2 = adjust_line(Tlen1, Alen1, Tcs1, L1),
-            token_cont(Tcs1, L2, yyaction(A1, Alen1, Tcs, Tline))
+        {A1,Alen1,_Tlen1,_Ics1,L1,_S1} ->       % Use last accept match
+            token_cont(yysuf(Tcs, Alen1), L1, yyaction(A1, Alen1, Tcs, Tline))
     end.
 
 %% token_cont(RestChars, Line, Token)
 %% If we have a token or error then return done, else if we have a
 %% skip_token then continue.
-
--dialyzer({nowarn_function, token_cont/3}).
 
 token_cont(Rest, Line, {token,T}) ->
     {done,{ok,T,Line},Rest};
@@ -296,19 +288,15 @@ tokens(S0, Ics0, L0, Tcs, Tlen0, Tline, Ts, A0, Alen0) ->
             %% Skip rest of tokens.
             Error = {L1,?MODULE,{illegal,yypre(Tcs, Tlen1+1)}},
             skip_tokens(yysuf(Tcs, Tlen1+1), L1, Error);
-        {A1,Alen1,Tlen1,_Ics1,L1,_S1} ->
+        {A1,Alen1,_Tlen1,_Ics1,L1,_S1} ->
             Token = yyaction(A1, Alen1, Tcs, Tline),
-            Tcs1 = yysuf(Tcs, Alen1),
-            L2 = adjust_line(Tlen1, Alen1, Tcs1, L1),
-            tokens_cont(Tcs1, L2, Token, Ts)
+            tokens_cont(yysuf(Tcs, Alen1), L1, Token, Ts)
     end.
 
 %% tokens_cont(RestChars, Line, Token, Tokens)
 %% If we have an end_token or error then return done, else if we have
 %% a token then save it and continue, else if we have a skip_token
 %% just continue.
-
--dialyzer({nowarn_function, tokens_cont/4}).
 
 tokens_cont(Rest, Line, {token,T}, Ts) ->
     tokens(yystate(), Rest, Line, Rest, 0, Line, [T|Ts], reject, 0);
@@ -352,18 +340,14 @@ skip_tokens(S0, Ics0, L0, Tcs, Tlen0, Tline, Error, A0, Alen0) ->
             {done,{error,Error,L1},eof};
         {reject,_Alen1,Tlen1,_Ics1,L1,_S1} ->
             skip_tokens(yysuf(Tcs, Tlen1+1), L1, Error);
-        {A1,Alen1,Tlen1,_Ics1,L1,_S1} ->
+        {A1,Alen1,_Tlen1,_Ics1,L1,_S1} ->
             Token = yyaction(A1, Alen1, Tcs, Tline),
-            Tcs1 = yysuf(Tcs, Alen1),
-            L2 = adjust_line(Tlen1, Alen1, Tcs1, L1),
-            skip_cont(Tcs1, L2, Token, Error)
+            skip_cont(yysuf(Tcs, Alen1), L1, Token, Error)
     end.
 
 %% skip_cont(RestChars, Line, Token, Error)
 %% Skip tokens until we have an end_token or error then return done
 %% with the original rror.
-
--dialyzer({nowarn_function, skip_cont/4}).
 
 skip_cont(Rest, Line, {token,_T}, Error) ->
     skip_tokens(yystate(), Rest, Line, Rest, 0, Line, Error, reject, 0);
@@ -383,25 +367,10 @@ skip_cont(Rest, Line, {skip_token,Push}, Error) ->
 skip_cont(Rest, Line, {error,_S}, Error) ->
     skip_tokens(yystate(), Rest, Line, Rest, 0, Line, Error, reject, 0).
 
--compile({nowarn_unused_function, [yyrev/1, yyrev/2, yypre/2, yysuf/2]}).
-
 yyrev(List) -> lists:reverse(List).
 yyrev(List, Tail) -> lists:reverse(List, Tail).
 yypre(List, N) -> lists:sublist(List, N).
 yysuf(List, N) -> lists:nthtail(N, List).
-
-%% adjust_line(TokenLength, AcceptLength, Chars, Line) -> NewLine
-%% Make sure that newlines in Chars are not counted twice.
-%% Line has been updated with respect to newlines in the prefix of
-%% Chars consisting of (TokenLength - AcceptLength) characters.
-
--compile({nowarn_unused_function, adjust_line/4}).
-
-adjust_line(N, N, _Cs, L) -> L;
-adjust_line(T, A, [$\n|Cs], L) ->
-    adjust_line(T-1, A, Cs, L-1);
-adjust_line(T, A, [_|Cs], L) ->
-    adjust_line(T-1, A, Cs, L).
 
 %% yystate() -> InitialState.
 %% yystate(State, InChars, Line, CurrTokLen, AcceptAction, AcceptLen) ->
@@ -413,7 +382,7 @@ adjust_line(T, A, [_|Cs], L) ->
 %% return signal either an unrecognised character or end of current
 %% input.
 
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.erl", 415).
+-file("src/sheets_record_lex.erl", 384).
 yystate() -> 100.
 
 yystate(107, [C|Ics], Line, Tlen, Action, Alen) when C >= 48, C =< 57 ->
@@ -1865,98 +1834,98 @@ yyaction(18, _, _, _) ->
 yyaction(_, _, _, _) -> error.
 
 -compile({inline,yyaction_0/0}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 27).
+-file("src/sheets_record_lex.xrl", 27).
 yyaction_0() ->
      skip_token .
 
 -compile({inline,yyaction_1/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 29).
+-file("src/sheets_record_lex.xrl", 29).
 yyaction_1(TokenChars, TokenLine) ->
      { token, { sheet_def_comment, TokenLine, parse_comment (TokenChars) }, push_back_method (TokenChars) } .
 
 -compile({inline,yyaction_2/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 31).
+-file("src/sheets_record_lex.xrl", 31).
 yyaction_2(TokenChars, TokenLine) ->
      { token, { sheet_def_comment, TokenLine, parse_comment (TokenChars) } } .
 
 -compile({inline,yyaction_3/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 33).
+-file("src/sheets_record_lex.xrl", 33).
 yyaction_3(TokenChars, TokenLine) ->
      { token, { sheet_def_record, TokenLine, parse_sheet (TokenChars) } } .
 
 -compile({inline,yyaction_4/0}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 35).
+-file("src/sheets_record_lex.xrl", 35).
 yyaction_4() ->
      skip_token .
 
 -compile({inline,yyaction_5/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 37).
+-file("src/sheets_record_lex.xrl", 37).
 yyaction_5(TokenChars, TokenLine) ->
      { token, { sheet_def_field, TokenLine, parse_field (TokenChars) } } .
 
 -compile({inline,yyaction_6/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 39).
+-file("src/sheets_record_lex.xrl", 39).
 yyaction_6(TokenChars, TokenLine) ->
      { token, { sheet_def_field, TokenLine, parse_field (TokenChars) } } .
 
 -compile({inline,yyaction_7/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 41).
+-file("src/sheets_record_lex.xrl", 41).
 yyaction_7(TokenChars, TokenLine) ->
      { token, { sheet_def_method, TokenLine, parse_method (TokenChars) } } .
 
 -compile({inline,yyaction_8/1}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 43).
+-file("src/sheets_record_lex.xrl", 43).
 yyaction_8(TokenLine) ->
      { token, { sheet_def_param_start, TokenLine } } .
 
 -compile({inline,yyaction_9/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 45).
+-file("src/sheets_record_lex.xrl", 45).
 yyaction_9(TokenChars, TokenLine) ->
      { token, { sheet_def_param, TokenLine, parse_param_from_str (TokenChars) }, push_back_param_str (TokenChars) } .
 
 -compile({inline,yyaction_10/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 47).
+-file("src/sheets_record_lex.xrl", 47).
 yyaction_10(TokenChars, TokenLine) ->
      { token, { sheet_def_param, TokenLine, parse_param (TokenChars) } } .
 
 -compile({inline,yyaction_11/1}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 49).
+-file("src/sheets_record_lex.xrl", 49).
 yyaction_11(TokenLine) ->
      { token, { sheet_def_param_delimiter, TokenLine } } .
 
 -compile({inline,yyaction_12/1}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 51).
+-file("src/sheets_record_lex.xrl", 51).
 yyaction_12(TokenLine) ->
      { token, { sheet_def_param_end, TokenLine } } .
 
 -compile({inline,yyaction_13/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 53).
+-file("src/sheets_record_lex.xrl", 53).
 yyaction_13(TokenChars, TokenLine) ->
      { token, { sheet_def_logic, TokenLine, parse_logic (TokenChars) }, "|" } .
 
 -compile({inline,yyaction_14/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 55).
+-file("src/sheets_record_lex.xrl", 55).
 yyaction_14(TokenChars, TokenLine) ->
      { token, { sheet_def_logic, TokenLine, parse_logic (TokenChars) } } .
 
 -compile({inline,yyaction_15/2}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 57).
+-file("src/sheets_record_lex.xrl", 57).
 yyaction_15(TokenChars, TokenLine) ->
      { token, { sheet_def_modifier, TokenLine, parse_modifier (TokenChars) } } .
 
 -compile({inline,yyaction_16/1}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 59).
+-file("src/sheets_record_lex.xrl", 59).
 yyaction_16(TokenLine) ->
      { token, { sheet_def_end, TokenLine } } .
 
 -compile({inline,yyaction_17/0}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 61).
+-file("src/sheets_record_lex.xrl", 61).
 yyaction_17() ->
      skip_token .
 
 -compile({inline,yyaction_18/0}).
--file("/mnt/d/ProjectCat/server/3rd/sheets/src/sheets_record_lex.xrl", 63).
+-file("src/sheets_record_lex.xrl", 63).
 yyaction_18() ->
      skip_token .
 
--file("/usr/local/lib/erlang/lib/parsetools-2.2/include/leexinc.hrl", 313).
+-file("/usr/local/lib/erlang/lib/parsetools-2.0.10/include/leexinc.hrl", 282).

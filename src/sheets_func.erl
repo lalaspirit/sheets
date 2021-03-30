@@ -29,12 +29,12 @@
 %%--------------------------------------------------------------------
 auto_ref(Name, Cols, Values) when is_atom(Name) ->
   Name1 = atom_to_list(Name),
-  Name2 = string:replace(Name1, "_", "", all),
-  Name3 = string:lowercase(Name2),
+  Name2 = string_replace(Name1, "_", ""),
+  Name3 = string:to_lower(Name2),
   auto_ref(Name3, Cols, Values);
 
 auto_ref(Name, [ColName|ColRest], [Value|ValRest]) when is_list(Name) ->
-  case string:lowercase(string:replace(ColName, " ", "", all)) of
+  case string:to_lower(string_replace(ColName, " ", "")) of
     Name -> Value;
     _Other -> auto_ref(Name, ColRest, ValRest)
   end;
@@ -52,9 +52,14 @@ auto_ref(Name, [], []) -> ?RETURN({field_not_found, Name}).
 map(Name, ReStr, Cols, Values) ->
   {ok, Re} = re:compile(ReStr),
   [
-    case re:run(lists:nth(N, Cols), Re, [{capture, [1], list}]) of
-      {match, [[_|_] = Key]} -> {Key, lists:nth(N, Values)};
-      _ -> ?RETURN({map_key_error, Name, ReStr})
+    try
+      C = lists:nth(N, Cols),
+      {match, [[_|_] = Key]} = re:run(C, Re, [{capture, [1], list}]),
+      {Key, lists:nth(N, Values)}
+    catch
+       _E : _R ->
+         Trace = erlang:get_stacktrace(),
+         ?RETURN({map_error, Name, ReStr, N, Cols, Values, {_E, _R, Trace}})
     end || N <- lists:seq(1, length(Cols)), re:run(lists:nth(N, Cols), Re) =/= nomatch
   ].
 
@@ -149,7 +154,9 @@ cast(Name, Func, Value) ->
   try
     Func(Value)
   catch
-    _E:_R -> ?RETURN({field_cast_error, Name, Value, {_E, _R}})
+    _E:_R ->
+      Trace = erlang:get_stacktrace(),
+      ?RETURN({field_cast_error, Name, Value, {_E, _R, Trace}})
   end.
 
 
@@ -199,11 +206,11 @@ ets_take_l(Ets, Fun) ->
   ets:safe_fixtable(Ets, false),
   Ret.
 
-ets_take_l(_Ets, ?EOT, _Fun) -> ?UNDEF;
+ets_take_l(_Ets, ?EOT, _Fun) -> false;
 ets_take_l(Ets, Key, Fun) ->
   [Value] = ets:lookup(Ets, Key),
   case Fun(Value) of
-    {true, Ret} -> Ret;
+    {true, Ret} -> {true, Ret};
     false -> ets_take_l(Ets, ets:next(Ets, Key), Fun)
   end.
 
@@ -218,11 +225,11 @@ ets_take_r(Ets, Fun) ->
   ets:safe_fixtable(Ets, false),
   Ret.
 
-ets_take_r(_Ets, ?EOT, _Fun) -> ?UNDEF;
+ets_take_r(_Ets, ?EOT, _Fun) -> false;
 ets_take_r(Ets, Key, Fun) ->
   [Value] = ets:lookup(Ets, Key),
   case Fun(Value) of
-    {true, Ret} -> Ret;
+    {true, Ret} -> {true, Ret};
     false -> ets_take_r(Ets, ets:prev(Ets, Key), Fun)
   end.
 
@@ -293,3 +300,6 @@ ets_keys(Ets) ->
 term_to_string(Term) ->
   R = io_lib:format("~p",[Term]),
   lists:flatten(R).
+
+string_replace(String, Re, To) ->
+  re:replace(String, Re, To, [global, {return,list}]).

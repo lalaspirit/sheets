@@ -238,7 +238,7 @@ generate_one2(#sheet{metas = Metas, record = Record} = Sheet, Options0) ->
   write_code_api_end(Fd),
 
   % list()
-  write_code_api_start(Fd, "return ets name", "list() -> [Record]"),
+  write_code_api_start(Fd, "return ets records", "list() -> [Record]"),
   write_code(Fd, "list() -> ets:tab2list(ets())."),
   write_code_api_end(Fd),
 

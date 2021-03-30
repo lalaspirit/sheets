@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 17. 五月 2020 15:11
 %%%-------------------------------------------------------------------
--module(csv_parser).
+-module(sheets_csv_parser).
 -author("lifan").
 
 %% API
@@ -111,7 +111,7 @@ parse_row2([], [], [], #row{fields = Fields} = Row) ->
 parse_row2([Col | Cols], [Type | Types], [Name | Names], #row{key = Key, fields = Fields} = Row) ->
   Props = init_fprops(Type, #fprops{name = Name}),
   case Props#fprops.is_omit of
-    true -> parse_row2(Cols, Types, Names, Row);
+    true -> parse_row2(Cols, Types, Names, Row#row{fields = [omit | Fields]});
     false ->
       Field = parse_field(Col, Props),
       NewKey = append_key(Key, Props, Field),

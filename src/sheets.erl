@@ -100,7 +100,7 @@ csv_dir() ->
 % 测试函数
 test() ->
   File = file_name("Unit.csv"),
-  Ret = csv_parser:parse(File),
+  Ret = sheets_csv_parser:parse(File),
   Ret.
 
 %%%===================================================================
@@ -130,7 +130,7 @@ safe_create(Ets, Opts) ->
 safe_reload(EtsName, Opts, Csv, ColumnSequence, InsertFun, HookFun) ->
   Owner = ets:info(EtsName, owner),
   TmpTable = create_temp_table(EtsName, Opts),
-  Table = csv_parser:parse_and_fetch(file_name(Csv), ColumnSequence),
+  Table = sheets_csv_parser:parse_and_fetch(file_name(Csv), ColumnSequence),
   [call_fun(InsertFun, [TmpTable, Line]) || Line <- Table],
   HookFun =/= undefined andalso call_fun(HookFun, [TmpTable]),
   ets:delete(EtsName),
