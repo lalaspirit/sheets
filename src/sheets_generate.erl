@@ -663,7 +663,7 @@ update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= li
     [] -> Code;
     [_|_] ->
       ValueStr = get_modifiers_code(Name, Sheet, Modifiers, [cast, value_enum, value_cast], "_Value", "_Value"),
-      ValueFilter = get_modifiers_code(Name, Sheet, Modifiers, [value_filter], "_Value", ""),
+      ValueFilter = get_modifiers_code(Name, Sheet, Modifiers, [filter, value_filter], "_Value", ""),
       Filters = [Filter || Filter <- [ValueFilter], Filter =/= ""],
       FilterStr = string:join(Filters, ","),
 
