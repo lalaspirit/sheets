@@ -15,7 +15,7 @@
 -include("sheets_common_def.hrl").
 
 -define(GENERATOR, ?MODULE).
--define(VERSION, "v0.2").
+-define(VERSION, "v0.3").
 
 %%% Record
 -record(sheet, {

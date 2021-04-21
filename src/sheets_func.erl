@@ -13,7 +13,7 @@
 %%% API
 %%%===================================================================
 -export([auto_ref/3, map/4, prop/4, list/4, group/4, check/3, filter/3, enum/3, cast/3]).
--export([filter_empty/1]).
+-export([filter_empty/1, wrap_re_str/1]).
 -export([ets_take_l/2, ets_take_r/2, ets_keys/1, ets_foldtake_l/3, ets_foldtake_r/3]).
 -include("sheets_common_def.hrl").
 
@@ -50,7 +50,7 @@ auto_ref(Name, [], []) -> ?RETURN({field_not_found, Name}).
 %%   Value = term()
 %%--------------------------------------------------------------------
 map(Name, ReStr, Cols, Values) ->
-  {ok, Re} = re:compile(ReStr),
+  {ok, Re} = re:compile(wrap_re_str(ReStr)),
   [
     try
       C = lists:nth(N, Cols),
@@ -100,7 +100,7 @@ build_props(Props, Name, Rslt) -> ?RETURN({map_key_error, Name, Props, Rslt}).
 %%   Value = term()
 %%--------------------------------------------------------------------
 list(Name, ReStr, Cols, Values) ->
-  {ok, Re} = re:compile(ReStr),
+  {ok, Re} = re:compile(wrap_re_str(ReStr)),
   List =
     [
       lists:nth(N, Values) || N <- lists:seq(1, length(Cols)), re:run(lists:nth(N, Cols), Re, [{capture, none}]) =:= match
@@ -303,3 +303,14 @@ term_to_string(Term) ->
 
 string_replace(String, Re, To) ->
   re:replace(String, Re, To, [global, {return,list}]).
+
+wrap_re_str("^" ++ _ = Str) ->
+  wrap_re_str2(Str);
+wrap_re_str(Str) ->
+  wrap_re_str2("^" ++ Str).
+
+wrap_re_str2(Str) ->
+  case lists:reverse(Str) of
+    "$"++_ -> Str;
+    Rever -> lists:reverse("$" ++ Rever)
+  end.
