@@ -39,16 +39,16 @@
 %% 查找表中记录
 -define(find_record(Module, Fun),
   sheets_func:ets_take_l(
-    fun(Key) -> try Value = Fun(Key), {true, Value} catch _:_ -> false end end,
-    ?sheet_ets(Module)
+    ?sheet_ets(Module),
+    fun(Key) -> try Value = Fun(Key), {true, Value} catch _:_ -> false end end
   )
 ).
 
 %% 查找表中记录
 -define(rfind_record(Module, Fun),
   sheets_func:ets_take_r(
-    fun(Key) -> try Value = Fun(Key), {true, Value} catch _:_ -> false end end,
-    ?sheet_ets(Module)
+    ?sheet_ets(Module),
+    fun(Key) -> try Value = Fun(Key), {true, Value} catch _:_ -> false end end
   )
 ).
 

@@ -15,7 +15,7 @@
 -include("sheets_common_def.hrl").
 
 -define(GENERATOR, ?MODULE).
--define(VERSION, "v0.1").
+-define(VERSION, "v0.2").
 
 %%% Record
 -record(sheet, {
@@ -662,17 +662,17 @@ update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= li
   case Modifiers of
     [] -> Code;
     [_|_] ->
-      ValueStr = get_modifiers_code(Name, Sheet, Modifiers, [cast, value_enum, value_cast], "_Value", "_Value"),
-      ValueFilter = get_modifiers_code(Name, Sheet, Modifiers, [value_filter], "_Value", ""),
+      ValueStr = get_modifiers_code(Name, Sheet, Modifiers, [value_enum, value_cast], "_Value", "_Value"),
+      ValueFilter = get_modifiers_code(Name, Sheet, Modifiers, [filter, value_filter], "_Value", ""),
       Filters = [Filter || Filter <- [ValueFilter], Filter =/= ""],
       FilterStr = string:join(Filters, ","),
-
-      format("[~s || _Value <- ~s~s]",
+      Code2 = format("[~s || _Value <- ~s~s]",
         [
           ValueStr,
           Code,
           ?VAL_IF(FilterStr =/= "", ", " ++ FilterStr, FilterStr)
-        ])
+        ]),
+      get_modifiers_code(Name, Sheet, Modifiers, [cast], Code2, Code2)
   end;
 
 update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= map ->
@@ -687,19 +687,19 @@ update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= ma
           true -> format("{~s, ~s}", [KeyStr, ValueStr]);
           false -> format("{~n    ~s,~n    ~s~n    }", [KeyStr, ValueStr])
         end,
-      RetStr = get_modifiers_code(Name, Sheet, Modifiers, [cast], PairStr, PairStr),
+      RetStr = get_modifiers_code(Name, Sheet, Modifiers, [pair_cast], PairStr, PairStr),
       KeyFilter = get_modifiers_code(Name, Sheet, Modifiers, [key_filter], "_Key", ""),
       ValueFilter = get_modifiers_code(Name, Sheet, Modifiers, [value_filter], "_Value", ""),
       PairFilter = get_modifiers_code(Name, Sheet, Modifiers, [filter], "_Pair", ""),
       Filters = [Filter || Filter <- [KeyFilter, ValueFilter, PairFilter], Filter =/= ""],
       FilterStr = string:join(Filters, ","),
-
-      format("[~s || {_Key, _Value} = _Pair <- ~s~s]",
+      Code2 = format("[~s || {_Key, _Value} = _Pair <- ~s~s]",
         [
           RetStr,
           Code,
           ?VAL_IF(FilterStr =/= "", ", " ++ FilterStr, FilterStr)
-        ])
+        ]),
+      get_modifiers_code(Name, Sheet, Modifiers, [cast], Code2, Code2)
   end;
 
 update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= prop ->
@@ -710,9 +710,9 @@ update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= pr
       KeyStr = get_modifiers_code(Name, Sheet, Modifiers, [key_enum, key_cast], "_Key", ""),
       RetStr =
         case KeyStr of
-          "" -> get_modifiers_code(Name, Sheet, Modifiers, [cast], "_Pair", "_Pair");
+          "" -> get_modifiers_code(Name, Sheet, Modifiers, [value_cast], "_Pair", "_Pair");
           _ ->
-            CastStr = get_modifiers_code(Name, Sheet, Modifiers, [cast], "_Pair2", "_Pair2"),
+            CastStr = get_modifiers_code(Name, Sheet, Modifiers, [value_cast], "_Pair2", "_Pair2"),
             format("begin ~n    _Key = element(1, _Pair),~n    _Key2 = ~s,~n    _Pair2 = erlang:setelement(1, _Pair, _Key2),~n    ~s~n    end",
               [KeyStr, CastStr])
         end,
@@ -720,25 +720,23 @@ update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= pr
       PairFilter = get_modifiers_code(Name, Sheet, Modifiers, [filter], "_Pair", ""),
       Filters = [Filter || Filter <- [KeyFilter, PairFilter], Filter =/= ""],
       FilterStr = string:join(Filters, ","),
-
-      format("[~s || _Pair <- ~s~s]",
+      Code2 = format("[~s || _Pair <- ~s~s]",
         [
           RetStr,
           Code,
           ?VAL_IF(FilterStr =/= "", ", " ++ FilterStr, FilterStr)
-        ])
+        ]),
+      get_modifiers_code(Name, Sheet, Modifiers, [cast], Code2, Code2)
   end;
 
-update_field_impl_code(Name, FuncName, Method, Sheet, Code) when FuncName =:= group ->
+update_field_impl_code(Name, _FuncName, Method, Sheet, Code) ->
   #meta_method{modifiers = Modifiers} = Method,
   case Modifiers of
     [] -> Code;
     [_|_] ->
       CastStr = get_modifiers_code(Name, Sheet, Modifiers, [cast], Code, Code),
       CastStr
-  end;
-
-update_field_impl_code(_Name, _FuncName, _Method, _Sheet, Code) -> Code.
+  end.
 
 
 get_modifiers_code(Name, Sheet, Modifiers, Names, Code, Default) ->
