@@ -23,10 +23,10 @@
   type,          % 类型  @enum(UnitType) | cast(AtomKey)
   level = 1,     % 等级  @check(Level) -> Level < 1000
   sex = 0,       % 性别  @enum(0, 1)
-  stats = [],    % 属性  @map("Stat (\w+)") | key_enum(UnitStat) | key_cast(AtomKey)
-  equips = [],   % 装备  @list("Equip \d+")
-  items = [],    % 道具  @prop("Item ID (\d+)", "Item Amount (\d+)") | filter({ID, Amount}) -> ID > 0 andalso Amount > 0
-  loots = [],    % 掉落  @prop("Loot Type (\d+)", "Loot ID (\d+)", "Loot Amount (\d+)") | filter({_, _, Amount}) -> Amount > 0
+  stats = [],    % 属性  @map("Stat (\\w+)") | key_enum(UnitStat) | key_cast(AtomKey)
+  equips = [],   % 装备  @list("Equip \\d+")
+  items = [],    % 道具  @prop("Item ID (\\d+)", "Item Amount (\d+)") | filter({ID, Amount}) -> ID > 0 andalso Amount > 0
+  loots = [],    % 掉落  @prop("Loot Type (\\d+)", "Loot ID (\d+)", "Loot Amount (\\d+)") | filter({_, _, Amount}) -> Amount > 0
   element = {fire, water},
   extra = [{checkable, true}],
   reserved       % 预留  @ignore
@@ -40,7 +40,7 @@
   chapter,       % 章节
   difficulty = 1,% 难度
   level = 1,     % 等级  @check(Level) -> Level < 1000
-  loots = [],    % 掉落  @prop("Loot Type (\d+)", "Loot ID (\d+)", "Loot Amount (\d+)") | filter({_, _, Amount}) -> Amount > 0
+  loots = [],    % 掉落  @prop("Loot Type (\\d+)", "Loot ID (\\d+)", "Loot Amount (\\d+)") | filter({_, _, Amount}) -> Amount > 0
   reserved       % 预留  @ignore
 }).
 
